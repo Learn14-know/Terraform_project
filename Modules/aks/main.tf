@@ -1,8 +1,7 @@
 variable "name" {}
 variable "location" {}
 variable "resource_group_name" {}
-variable "kubernetes_version" { default = "1.28.0" }
-variable "node_count" { default = 2 }
+variable "node_count" { default = 1 }
 variable "node_vm_size" { default = "Standard_D2s_v3" }
 
 resource "azurerm_kubernetes_cluster" "aks" {
@@ -17,18 +16,20 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vm_size    = var.node_vm_size
   }
 
-  role_based_access_control {
-    enabled = true
-  }
-
   identity {
     type = "SystemAssigned"
   }
 
-  # networking, addon_profiles etc as inputs
+  role_based_access_control {
+    enabled = true
+  }
+
+  lifecycle {
+    ignore_changes = [default_node_pool[0].node_count] # optional
+  }
 }
 
-output "kube_config" {
-  value = azurerm_kubernetes_cluster.aks.kube_admin_config_raw
+output "kube_admin_config_raw" {
+  value     = azurerm_kubernetes_cluster.aks.kube_admin_config_raw
   sensitive = true
 }
