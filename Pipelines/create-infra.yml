@@ -1,0 +1,44 @@
+# Create Infrastructure Pipeline
+# Automatically triggered on branch pushes (dev/stage)
+trigger:
+  branches:
+    include:
+      - dev
+      - stage
+
+variables:
+  tf_version: '1.5.0'
+
+stages:
+- stage: Terraform
+  displayName: 'Terraform Apply Stage'
+  jobs:
+  - job: InitPlanApply
+    displayName: 'Initialize, Plan, Apply'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    # Install Terraform
+    - task: UseTerraform@0
+      inputs:
+        terraformVersion: '$(tf_version)'
+
+    # Login to Azure using Service Connection
+    - task: AzureCLI@2
+      displayName: 'Azure Login'
+      inputs:
+        azureSubscription: 'terraform-spn' # Replace with your service connection
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az account show
+
+    # Terraform init, plan, apply
+    - script: |
+        echo "Switching to environment folder"
+        cd environments/$(Build.SourceBranchName)
+        terraform init
+        terraform validate
+        terraform plan -out=tfplan -var-file=terraform.tfvars
+        terraform apply -auto-approve tfplan
+      displayName: 'Terraform Init/Plan/Apply'
