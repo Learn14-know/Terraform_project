@@ -7,7 +7,7 @@ trigger:
       - stage
 
 variables:
-  tf_version: '1.5.0'
+  tf_version: '1.7.5'  # Latest Terraform version
 
 stages:
 - stage: Terraform
@@ -18,8 +18,10 @@ stages:
     pool:
       vmImage: 'ubuntu-latest'
     steps:
+
     # Install Terraform
-    - task: UseTerraform@0
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
       inputs:
         terraformVersion: '$(tf_version)'
 
@@ -27,18 +29,33 @@ stages:
     - task: AzureCLI@2
       displayName: 'Azure Login'
       inputs:
-        azureSubscription: 'terraform-spn' # Replace with your service connection
+        azureSubscription: 'terraform-spn'  # Replace with your service connection
         scriptType: bash
         scriptLocation: inlineScript
         inlineScript: |
           az account show
 
-    # Terraform init, plan, apply
+    # Terraform init
     - script: |
         echo "Switching to environment folder"
         cd environments/$(Build.SourceBranchName)
         terraform init
+      displayName: 'Terraform Init'
+
+    # Terraform validate
+    - script: |
+        cd environments/$(Build.SourceBranchName)
         terraform validate
+      displayName: 'Terraform Validate'
+
+    # Terraform plan
+    - script: |
+        cd environments/$(Build.SourceBranchName)
         terraform plan -out=tfplan -var-file=terraform.tfvars
+      displayName: 'Terraform Plan'
+
+    # Terraform apply
+    - script: |
+        cd environments/$(Build.SourceBranchName)
         terraform apply -auto-approve tfplan
-      displayName: 'Terraform Init/Plan/Apply'
+      displayName: 'Terraform Apply'
